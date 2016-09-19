@@ -20,7 +20,7 @@
 #' @family model fitting functions 
 #' 
 #' @export
-nplcm_Prior_NoReg <- function(data_nplcm, model_options, mcmc_options) {
+nplcm_NoReg_prior <- function(data_nplcm, model_options, mcmc_options) {
     # Record the settings of current analysis:
     cat("==[baker] Results stored in: ==",
         "\n", mcmc_options$result.folder, "\n")
@@ -518,14 +518,14 @@ nplcm_Prior_NoReg <- function(data_nplcm, model_options, mcmc_options) {
     #
     
     use_jags <- (!is.null(mcmc_options$use_jags) && mcmc_options$use_jags)
-    model_func <- write_model_NoReg(model_options$likelihood$k_subclass,
-                                    data_nplcm$Mobs,
-                                    model_options$prior,
-                                    model_options$likelihood$cause_list,
-                                    model_options$use_measurements,
-                                    mcmc_options$ppd,
-                                    use_jags)
-    model_bugfile_name <- "model_NoReg.bug"
+    model_func <- write_model_NoReg_prior(model_options$likelihood$k_subclass,
+                                          data_nplcm$Mobs,
+                                          model_options$prior,
+                                          model_options$likelihood$cause_list,
+                                          model_options$use_measurements,
+                                          NULL,
+                                          use_jags)
+    model_bugfile_name <- "model_NoReg_prior.bug"
     filename <- file.path(mcmc_options$bugsmodel.dir, model_bugfile_name)
     writeLines(model_func, filename)
     #
@@ -573,48 +573,3 @@ nplcm_Prior_NoReg <- function(data_nplcm, model_options, mcmc_options) {
       return(gs)
     }
 }
-
-#' Initialize individual latent status (only for JAGS)
-#' 
-#' @details In JAGS 3.4.0, if an initial value contradicts the probablistic specification, e.g.
-#' \code{MSS_1[i,j] ~ dbern(mu_ss_1[i,j])}, where \code{MSS_1[i,j]=1} but \code{mu_ss_1[i,j]=0},
-#' then JAGS cannot understand it. In PERCH application, this is most likely used when the specificity of the 
-#' silver-standard data is 1. Note: this is not a problem in WinBUGS.
-#' 
-#' 
-#' @param MSS_list A list of silver-standard measurement data, possibly with more than one 
-#' slices; see \code{data_nplcm} argument in \code{\link{nplcm}}
-#' @param cause_list See \code{model_options} arguments in \code{\link{nplcm}}
-#' @param patho A vector of measured pathogen name for MSS; default is \code{colnames(MSS)}
-#' 
-#' @return a list of numbers, indicating categories of individual latent causes.
-#' 
-#' @family initialization functions
-#' @export
-init_latent_jags_multipleSS <- function(MSS_list,cause_list,
-                                        patho=unlist(lapply(MSS_list,colnames))){
-  # <--- revising for multiple silver-standard data.
-  #table(apply(MSS,1,function(v) paste(v,collapse="")))
-  MSS <- do.call(cbind,MSS_list)
-  ind_positive <- which(apply(MSS,1,sum,na.rm=TRUE)>0)
-  res <- sample.int(length(cause_list),size = nrow(MSS), replace=TRUE)
-  if (length(ind_positive)>0){
-    vec <- sapply(ind_positive, function(i) paste(unique(patho[which(MSS[i,]==1)]),collapse="+"))
-    res[ind_positive] <- match_cause(cause_list,vec)
-  }
-  if (sum(is.na(res[ind_positive]))>0){ # <--- corrected to add res[].
-    ind_NA <- which(is.na(res))
-    stop(paste0("==[baker] Case(s) The ",paste(ind_NA,collapse=", "), "-th subject(s) have positive silver-standard
-                measurements on pathogen combinations not specified in the 'cause_list' of 
-                'model_options$likelihood'! Please consider if you want to delete these cases,
-                or to add these combinations into 'cause_list'.==\n"))
-  }
-  res
-}
-
-# MSS_list <- data_nplcm$Mobs$MSS
-# cause_list <- model_options$likelihood$cause_list
-# patho <- unlist(lapply(MSS_list,colnames))
-# 
-# init_latent_jags_multipleSS(MSS_list,cause_list)
-# 

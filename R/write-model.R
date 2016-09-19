@@ -31,6 +31,23 @@ write_model_NoReg <- function(k_subclass,Mobs,prior,cause_list,
          "}#END OF MODEL.")
 }
 
+write_model_NoReg_prior <- function(k_subclass,Mobs,prior,cause_list,
+                                    use_measurements,ppd=NULL,use_jags=FALSE){
+  ## 1) accommodate singletons, combos, and NoA;
+  ## 2) If use_jags=FALSE, check-bit to prevent case data informing FPR (see the use of cut() functions in "plug-and-play.R");
+  if (length(ppd) > 0) {
+    message("Prior only mode does not support ppd.")
+  }
+  chunk1 <- insert_bugfile_chunk_noreg_meas_prior(k_subclass,Mobs,
+                                                  prior,cause_list,use_measurements,ppd,use_jags)
+  chunk2 <- insert_bugfile_chunk_noreg_etiology(NULL)
+  
+  paste0("model{#BEGIN OF MODEL:\n",
+         chunk1,"\n",
+         chunk2,"\n",
+         "}#END OF MODEL.")
+}
+
 #' Write .bug model file for regression model without nested subclasses
 #' 
 #' \code{write_model_Reg_NoNest} automatically generates model file according to
